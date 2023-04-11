@@ -1,20 +1,18 @@
-# I Could use the openSkys API, to gather information on flights.
-# I would be looking for military aircrafts that are not Canadian and that are within a speicifc distance from canadian air-space
-# I could also look at the direction of the flight to see if it looks like it's going to come into canadian air space.
-# If it is in candian air-space or trending towards candian air-space display all information
-# Depending on capabilities we could also look for specific altitudes? Or speeds?
+# New Plan: Multi-threaded News Web Scraper
+# Used to accumulate mulitiple sources on one topic quickly from a variety of different new sources
+# 1) Web Scraping a website
+
+# 2) Multi-Threading to help with performance.
 import requests
+from bs4 import BeautifulSoup
+payload={'q': 'Covid-19', 'section':'all', 'sortOrder':'relevance', 'media':'all'}
+r = requests.get('https://www.cbc.ca/search', params=payload)
+# print(r.url)
+r.status_code
 
-endpoint = "https://opensky-network.org/api/states/all"
+r.headers['content-type']
 
-response = requests.get(endpoint)
+r.text
+soup = BeautifulSoup(r.text, 'html.parser')
 
-# check if the request was successful
-if response.status_code == 200:
-    # extract the state vectors from the JSON response
-    data = response.json()
-    for state in data["states"]:
-        if state[2] == 'Canada':
-            print(state)
-else:
-    print("Error:", response.status_code, response.reason)
+print(soup.prettify())
