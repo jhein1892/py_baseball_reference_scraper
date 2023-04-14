@@ -35,14 +35,20 @@
 # I want to current stats up until now -> Extrapolate on how close projections are to current performance.
 
 import requests
-from bs4 import BeautifulSoup
-
-r = requests.get('https://www.baseball-reference.com/players/')
+from bs4 import BeautifulSoup, SoupStrainer
+payload = {'search': "Justin Turner"}
+r = requests.get('https://www.baseball-reference.com/search/search.fcgi', payload)
+# print(r.url)
 data = r.text
 
-soup = BeautifulSoup(data, 'html.parser')
+only_relevant_url = SoupStrainer(class_='search-item-url')
+only_relevant_players = SoupStrainer(id='players')
+soup = BeautifulSoup(data, 'html.parser', parse_only=only_relevant_players)
+my_players = soup.find_all(only_relevant_url)
 
-print(soup.prettify())
+for player in my_players:
+    # This gives the relevant url to add to https://www.baseball-reference.com
+    print(player.text)
 
 
 
