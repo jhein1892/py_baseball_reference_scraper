@@ -24,13 +24,17 @@ for player in my_players:
 baseURL = 'https://www.baseball-reference.com'
 player_url = baseURL + player_url
 
+
+def _format_stats(raw_stats):
+    print(f"input row: {raw_stats}")
+
 # Track Time for each Thread
 def _timing_decorator(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
-        print(f"{func.__name__} Elapsed Time: {round(end_time - start_time)} seconds")
+        print(f"{func.__name__} Elapsed Time: {round((end_time - start_time), 3)} seconds")
         return result
     return wrapper
 
@@ -47,8 +51,17 @@ def get_projections():
 
 @_timing_decorator
 def get_career():
-    # In here I"m going to get and format player career stats
-    print('Player Career')
+    career_request = requests.get(player_url)
+    data = career_request.text
+    stats_table = SoupStrainer(id='batting_standard')
+    career_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find('tfoot')
+
+    for row in career_soup.find_all('tr'):
+        if row.find('th').find('a'): 
+            _format_stats(row)
+            # print(f'Right Row: {row}')
+            break
+            
 
 @_timing_decorator
 def get_season():
