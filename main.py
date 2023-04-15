@@ -24,9 +24,15 @@ for player in my_players:
 baseURL = 'https://www.baseball-reference.com'
 player_url = baseURL + player_url
 
+player_stats = {}
 
 def _format_stats(raw_stats):
-    print(f"input row: {raw_stats}")
+    stat_obj = {}
+    for stat in raw_stats.find_all('td'):
+        data_stat = stat.get('data-stat')
+        value = stat.text
+        stat_obj[data_stat] = stat_obj.get(data_stat, value)    
+    return stat_obj
 
 # Track Time for each Thread
 def _timing_decorator(func):
@@ -58,8 +64,8 @@ def get_career():
 
     for row in career_soup.find_all('tr'):
         if row.find('th').find('a'): 
-            _format_stats(row)
-            # print(f'Right Row: {row}')
+            stats = _format_stats(row)
+            player_stats['career'] = player_stats.get('career', stats)
             break
             
 
@@ -71,6 +77,8 @@ def get_season():
 
 print(player_url)
 # Create Threads
+
+# This can get condensed into a loop
 projection_thread = threading.Thread(target=get_projections)
 career_thread = threading.Thread(target=get_career)
 season_thread = threading.Thread(target=get_season)
@@ -78,3 +86,11 @@ season_thread = threading.Thread(target=get_season)
 projection_thread.start()
 career_thread.start()
 season_thread.start()
+
+threads = [projection_thread, career_thread, season_thread]
+
+for thread in threads:
+    thread.join()
+
+
+print(f"Players Stats: {player_stats}")
