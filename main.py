@@ -26,14 +26,6 @@ player_url = baseURL + player_url
 
 player_stats = {}
 
-def _format_stats(raw_stats):
-    stat_obj = {}
-    for stat in raw_stats.find_all('td'):
-        data_stat = stat.get('data-stat')
-        value = stat.text
-        stat_obj[data_stat] = stat_obj.get(data_stat, value)    
-    return stat_obj
-
 # Track Time for each Thread
 def _timing_decorator(func):
     def wrapper(*args, **kwargs):
@@ -45,15 +37,30 @@ def _timing_decorator(func):
     return wrapper
 
 @_timing_decorator
-def format_stats():
-    #Will probably need to format stats
-    print('Formatting Stats')
+def _format_stats(raw_stats):
+    stat_obj = {}
+    for stat in raw_stats.find_all('td'):
+        data_stat = stat.get('data-stat')
+        value = stat.text
+        stat_obj[data_stat] = stat_obj.get(data_stat, value)    
+    return stat_obj
 
-
+# This one is being a problem
 @_timing_decorator
 def get_projections():
-    # In here I'm going to get and format my player projections
-    print('Player projections')
+    proj_request = requests.get(player_url)
+    data = proj_request.text
+    proj_table = SoupStrainer(id='batting_standard')
+    proj_soup = BeautifulSoup(data, 'html.parser', parse_only=proj_table)
+
+    for table in proj_soup.find_all('table'):
+        print('\ntable\n', player_url)
+        break
+    # print("table: ", proj_soup.prettify())
+    # for row in projections_soup.find_all('tr'):
+    #     stats = _format_stats(row)
+    #     player_stats['projection'] = player_stats.get('projection', stats)
+    #     break
 
 @_timing_decorator
 def get_career():
@@ -71,7 +78,18 @@ def get_career():
 
 @_timing_decorator
 def get_season():
-    # In here I"m going to get and format player season stats
+    career_request = requests.get(player_url)
+    data = career_request.text
+    stats_table = SoupStrainer(id='batting_standard')
+    career_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find('tbody')
+    # print(career_soup.prettify())
+
+    for row in career_soup.find_all('tr'):
+        if row.find('th', {'csk':'2023'}):
+            print('here') 
+            stats = _format_stats(row)
+            player_stats['season'] = player_stats.get('season', stats)
+            break
     print('Player Season')
 
 
