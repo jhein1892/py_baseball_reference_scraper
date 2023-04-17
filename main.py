@@ -38,9 +38,7 @@ baseURL = 'https://www.baseball-reference.com'
 player_url = baseURL + player_url
 
 player_stats = {}
-
 career_keys = []
-
 season_keys = []
 proj_keys = []
 
@@ -57,14 +55,18 @@ def _timing_decorator(func):
 @_timing_decorator
 def _format_stats(raw_stats, list):
     keys_mapping = {'career': career_keys, 'season': season_keys, 'proj': proj_keys}
-    # values_mapping = {'career': career_values, 'season': season_values, 'proj': proj_values}
-
+    keys_swapping = {'batting_avg': 'avg', 'onbase_plus_slugging_plus': 'OPS+', 'slugging_perc':'SLUG%', 'onbase_perc':'OBP', 'onbase_plus_slugging':'OPS'}
+    ignore_keys = ['award_summary', 'pos_season']
     stat_obj = {}
     for stat in raw_stats.find_all('td'):
         data_stat = stat.get('data-stat')
+        if data_stat in ignore_keys:
+            continue
+        if data_stat in keys_swapping:
+            data_stat = keys_swapping[data_stat]
+            
         keys_mapping[list].append(data_stat)
         value = stat.text
-        # values_mapping[list].append(value)
         stat_obj[data_stat] = stat_obj.get(data_stat, value)    
     return stat_obj
 
@@ -118,55 +120,34 @@ def get_season():
 # Create Threads
 
 # This can get condensed into a loop
-# projection_thread = threading.Thread(target=get_projections)
+projection_thread = threading.Thread(target=get_projections)
 career_thread = threading.Thread(target=get_career)
 season_thread = threading.Thread(target=get_season)
 
-# projection_thread.start()
+projection_thread.start()
 career_thread.start()
 season_thread.start()
 
-# threads = [projection_thread, career_thread, season_thread]
-threads = [career_thread, season_thread]
+threads = [projection_thread, career_thread, season_thread]
+# threads = [career_thread, season_thread]
 
 for thread in threads:
     thread.join()
 
 
-common_stats = set(career_keys).intersection(season_keys)
-career_values = ['Season']
-season_values = ['Career']
+common_stats = set(career_keys).intersection(season_keys, proj_keys)
+career_values = ['Career(Avg 162)']
+season_values = ['Season']
 proj_values = ['Projections']
 value_mapping = {'career':career_values, 'season': season_values, 'proj': proj_values}
 # print(player_stats)
 for key in common_stats:
     career_values.append(player_stats['career'][key])
     season_values.append(player_stats['season'][key])
-    # proj_values.append(player_stats['proj'][key])
+    proj_values.append(player_stats['proj'][key])
 
 common_stats = list(common_stats)
 common_stats.insert(0, 'Time')
-table = tabulate([common_stats, career_values, season_values], headers="firstrow")
+table = tabulate([common_stats, career_values, season_values, proj_values], headers="firstrow", tablefmt="fancy_grid")
 
 print(table)
-# For each object in stat_timeframe
-# 
-# On next iteration, if the key we 
-# For each key in object
-    # if that key is also in the other two, then we want to keep it.
-
-# {
-#   'career': 
-#       {'G': '162', 'PA': '600', 'AB': '527', 'R': '76', 'H': '152', '2B': '34', '3B': '1', 'HR': '19', 'RBI': '77', 'SB': '5', 'CS': '1', 'BB': '54', 'SO': '90', 'batting_avg': '.289', 'onbase_perc': '.366', 'slugging_perc': '.465', 'onbase_plus_slugging': '.831', 'onbase_plus_slugging_plus': '125', 'TB': '245', 'GIDP': '14', 'HBP': '13', 'SH': '1', 'SF': '5', 'IBB': '2', 'pos_season': '', 'award_summary': ''}, 
-
-#   'season': 
-#       {'age': '38', 'team_ID': 'BOS', 'lg_ID': 'AL', 'G': '15', 'PA': '68', 'AB': '55', 'R': '8', 'H': '14', '2B': '4', '3B': '0', 'HR': '0', 'RBI': '4', 'SB': '1', 'CS': '0', 'BB': '9', 'SO': '8', 'batting_avg': '.255', 'onbase_perc': '.382', 'slugging_perc': '.327', 'onbase_plus_slugging': '.710', 'onbase_plus_slugging_plus': '94', 'TB': '18', 'GIDP': '2', 'HBP': '3', 'SH': '0', 'SF': '1', 'IBB': '0', 'pos_season': '*D/3', 'award_summary': ''}, 
-
-#   'projections': 
-#       {'team_ID': 'Proj.', 'age': '38', 'PA': '527', 'AB': '464', 'R': '64', 'H': '123', '2B': '26', '3B': '1', 'HR': '16', 'RBI': '71', 'SB': '4', 'CS': '0', 'BB': '47', 'SO': '93', 'batting_avg': '.265', 'onbase_perc': '.339', 'slugging_perc': '.429', 'onbase_plus_slugging': '.768', 'TB': '199', 'GIDP': '11', 'HBP': '8', 'SH': '0', 'SF': '6', 'IBB': '1', 'reliability': '82%'}
-# }
-
-
-
-
-# print(f"Players Stats: {player_stats}")
