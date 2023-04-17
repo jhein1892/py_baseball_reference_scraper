@@ -5,8 +5,14 @@ import threading
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-
+options = webdriver.ChromeOptions()
+options.add_argument('--headless')
+options.add_argument('--disable-css')
+driver = webdriver.Chrome(options=options) # Still make sure that your chrome driver is in PATH or in this folder if it isn't
 
 # Turn this into user input
 payload = {'search': "Justin Turner"}
@@ -53,21 +59,14 @@ def _format_stats(raw_stats):
 # This one is being a problem
 @_timing_decorator
 def get_projections():
-    # response = requests.get(player_url)
-    # soup = BeautifulSoup(response.content, 'html.parser')
-    options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
-    driver_path = '/Users/jacobhein/Downloads/chromedriver_mac_arm64/chromedriver'
-    service = Service(executable_path=driver_path)
-    driver = webdriver.Chrome(options=options,service=service)
-
     driver.get(player_url)
-    driver.implicitly_wait(5)
-    response = driver.page_source
+    driver.implicitly_wait(10)
+    content = driver.find_element(By.ID, 'batting_proj')
+    html_string = content.get_attribute('outerHTML')
     driver.quit()
-    soup = BeautifulSoup(response, 'html.parser')
-    section = soup.find('table', {'id':'batting_proj'})
-    stat_section = section.find('tbody')
+
+    soup = BeautifulSoup(html_string, 'html.parser')
+    stat_section = soup.find('tbody')
 
     for row in stat_section.find_all('tr'):
         if row.find('a',{'title':'Marcels Projections'}):
