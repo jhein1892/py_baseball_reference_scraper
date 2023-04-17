@@ -3,6 +3,11 @@ from bs4 import BeautifulSoup, SoupStrainer
 import time
 import threading
 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+
+
+
 # Turn this into user input
 payload = {'search': "Justin Turner"}
 search_request = requests.get('https://www.baseball-reference.com/search/search.fcgi', payload)
@@ -48,19 +53,26 @@ def _format_stats(raw_stats):
 # This one is being a problem
 @_timing_decorator
 def get_projections():
-    proj_request = requests.get(player_url)
-    data = proj_request.text
-    proj_table = SoupStrainer(id='batting_standard')
-    proj_soup = BeautifulSoup(data, 'html.parser', parse_only=proj_table)
+    # response = requests.get(player_url)
+    # soup = BeautifulSoup(response.content, 'html.parser')
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    driver_path = '/Users/jacobhein/Downloads/chromedriver_mac_arm64/chromedriver'
+    service = Service(executable_path=driver_path)
+    driver = webdriver.Chrome(options=options,service=service)
 
-    for table in proj_soup.find_all('table'):
-        print('\ntable\n', player_url)
-        break
-    # print("table: ", proj_soup.prettify())
-    # for row in projections_soup.find_all('tr'):
-    #     stats = _format_stats(row)
-    #     player_stats['projection'] = player_stats.get('projection', stats)
-    #     break
+    driver.get(player_url)
+    driver.implicitly_wait(5)
+    response = driver.page_source
+    driver.quit()
+    soup = BeautifulSoup(response, 'html.parser')
+    section = soup.find('table', {'id':'batting_proj'})
+    stat_section = section.find('tbody')
+
+    for row in stat_section.find_all('tr'):
+        if row.find('a',{'title':'Marcels Projections'}):
+            stats = _format_stats(row)
+            player_stats['projections'] = player_stats.get('projections', stats)
 
 @_timing_decorator
 def get_career():
@@ -86,14 +98,14 @@ def get_season():
 
     for row in career_soup.find_all('tr'):
         if row.find('th', {'csk':'2023'}):
-            print('here') 
+            # print('here') 
             stats = _format_stats(row)
             player_stats['season'] = player_stats.get('season', stats)
             break
-    print('Player Season')
+    # print('Player Season')
 
 
-print(player_url)
+# print(player_url)
 # Create Threads
 
 # This can get condensed into a loop
