@@ -55,7 +55,7 @@ def _timing_decorator(func):
 @_timing_decorator
 def _format_stats(raw_stats, list):
     keys_mapping = {'career': career_keys, 'season': season_keys, 'proj': proj_keys}
-    keys_swapping = {'batting_avg': 'avg', 'onbase_plus_slugging_plus': 'OPS+', 'slugging_perc':'SLUG%', 'onbase_perc':'OBP', 'onbase_plus_slugging':'OPS'}
+    keys_swapping = {'batting_avg': 'AVG', 'onbase_plus_slugging_plus': 'OPS+', 'slugging_perc':'SLUG%', 'onbase_perc':'OBP', 'onbase_plus_slugging':'OPS'}
     ignore_keys = ['award_summary', 'pos_season']
     stat_obj = {}
     for stat in raw_stats.find_all('td'):
@@ -129,18 +129,15 @@ career_thread.start()
 season_thread.start()
 
 threads = [projection_thread, career_thread, season_thread]
-# threads = [career_thread, season_thread]
 
 for thread in threads:
     thread.join()
-
 
 common_stats = set(career_keys).intersection(season_keys, proj_keys)
 career_values = ['Career(Avg 162)']
 season_values = ['Season']
 proj_values = ['Projections']
-value_mapping = {'career':career_values, 'season': season_values, 'proj': proj_values}
-# print(player_stats)
+
 for key in common_stats:
     career_values.append(player_stats['career'][key])
     season_values.append(player_stats['season'][key])
