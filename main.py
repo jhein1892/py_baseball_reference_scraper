@@ -80,19 +80,23 @@ proj_keys = []
 def _format_stats(raw_stats, list):
     keys_mapping = {'career': career_keys, 'season': season_keys, 'proj': proj_keys}
     keys_swapping = {
-        'batting_avg': 'AVG', 
-        'onbase_plus_slugging_plus': 'OPS+', 
-        'slugging_perc':'SLUG%', 
-        'onbase_perc':'OBP', 
-        'onbase_plus_slugging':'OPS',
-        'strikeouts_per_base_on_balls':"K/BB",
-        'earned_run_avg':'ERA',
-        'win_loss_perc':'W/L%',
-        'strikeouts_per_nine':'K/9',
-        'bases_on_balls_per_nine':'BB/9',
-        'home_runs_per_nine':'HR/9',
-        'hits_per_nine':'H/9',
-        'batters_faced':'BF'
+        "B":{
+            'batting_avg': 'AVG', 
+            'onbase_plus_slugging_plus': 'OPS+', 
+            'slugging_perc':'SLUG%', 
+            'onbase_perc':'OBP', 
+            'onbase_plus_slugging':'OPS',
+        },
+        "P":{
+            'strikeouts_per_base_on_balls':"K/BB",
+            'earned_run_avg':'ERA',
+            'win_loss_perc':'W/L%',
+            'strikeouts_per_nine':'K/9',
+            'bases_on_balls_per_nine':'BB/9',
+            'home_runs_per_nine':'HR/9',
+            'hits_per_nine':'H/9',
+            'batters_faced':'BF'
+        }
     }
     ignore_keys = ['award_summary', 'pos_season']
     stat_obj = {}
@@ -100,8 +104,8 @@ def _format_stats(raw_stats, list):
         data_stat = stat.get('data-stat')
         if data_stat in ignore_keys:
             continue
-        if data_stat in keys_swapping:
-            data_stat = keys_swapping[data_stat]
+        if data_stat in keys_swapping[player_position]:
+            data_stat = keys_swapping[player_position][data_stat]
             
         keys_mapping[list].append(data_stat)
         value = stat.text
