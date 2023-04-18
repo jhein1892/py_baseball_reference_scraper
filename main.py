@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup, SoupStrainer
 import time
 import threading
+from urllib.parse import urlparse
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -17,32 +18,33 @@ options.add_argument('--disable-css')
 driver = webdriver.Chrome(options=options) # Still make sure that your chrome driver is in PATH or in this folder if it isn't
 
 # Turn this into user input
-payload = {'search': "Justin Turner"}
+payload = {'search': "Chris Sale"}
 search_request = requests.get('https://www.baseball-reference.com/search/search.fcgi', payload)
 data = search_request.text
-
-# Finds specific player URL
-only_relevant_url = SoupStrainer(class_='search-item-url')
-only_relevant_players = SoupStrainer(id='players')
-soup = BeautifulSoup(data, 'html.parser', parse_only=only_relevant_players)
-my_players = soup.find_all(only_relevant_url)
-
+url = search_request.url
+parsed_url = urlparse(url)
+url_path = parsed_url.path
 player_url = ''
-# update this to work with multiple players
-for player in my_players:
-    player_url = player.text
-    # This gives the relevant url to add to https://www.baseball-reference.com
+if '/players' in url_path:
+    player_url = url
+else:
+    only_relevant_url = SoupStrainer(class_='search-item-url')
+    only_relevant_players = SoupStrainer(id='players')
+    soup = BeautifulSoup(data, 'html.parser', parse_only=only_relevant_players)
+    my_players = soup.find_all(only_relevant_url)
 
-# Create next search's URL
-baseURL = 'https://www.baseball-reference.com'
-player_url = baseURL + player_url
+    # update this to work with multiple players
+    for player in my_players:
+        player_url = player.text
 
-player_stats = {}
-career_keys = []
-season_keys = []
-proj_keys = []
+    # Create next search's URL
+    baseURL = 'https://www.baseball-reference.com'
+    player_url = baseURL + player_url
 
-# Track Time for each Thread
+
+# print(player_url)
+
+# # # Track Time for each Thread
 def _timing_decorator(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
@@ -53,9 +55,45 @@ def _timing_decorator(func):
     return wrapper
 
 @_timing_decorator
+def _find_position():
+    position_request = requests.get(player_url)
+    data = position_request.text
+    only_meta = SoupStrainer(id='meta')
+    soup = BeautifulSoup(data,'html.parser', parse_only=only_meta).find_all('div')
+    for div in soup:
+        my_tags = div.find_all('p')
+        for element in my_tags:
+            if 'Position' in element.text:
+                if 'Pitcher' in element.text:
+                    return "P"
+                else:
+                    return "B"
+        
+player_position = _find_position()
+position_mapping = {'B': 'batting', 'P' :'pitching'}
+player_stats = {}
+career_keys = []
+season_keys = []
+proj_keys = []
+
+@_timing_decorator
 def _format_stats(raw_stats, list):
     keys_mapping = {'career': career_keys, 'season': season_keys, 'proj': proj_keys}
-    keys_swapping = {'batting_avg': 'AVG', 'onbase_plus_slugging_plus': 'OPS+', 'slugging_perc':'SLUG%', 'onbase_perc':'OBP', 'onbase_plus_slugging':'OPS'}
+    keys_swapping = {
+        'batting_avg': 'AVG', 
+        'onbase_plus_slugging_plus': 'OPS+', 
+        'slugging_perc':'SLUG%', 
+        'onbase_perc':'OBP', 
+        'onbase_plus_slugging':'OPS',
+        'strikeouts_per_base_on_balls':"K/BB",
+        'earned_run_avg':'ERA',
+        'win_loss_perc':'W/L%',
+        'strikeouts_per_nine':'K/9',
+        'bases_on_balls_per_nine':'BB/9',
+        'home_runs_per_nine':'HR/9',
+        'hits_per_nine':'H/9',
+        'batters_faced':'BF'
+    }
     ignore_keys = ['award_summary', 'pos_season']
     stat_obj = {}
     for stat in raw_stats.find_all('td'):
@@ -75,7 +113,8 @@ def _format_stats(raw_stats, list):
 def get_projections():
     driver.get(player_url)
     driver.implicitly_wait(10)
-    content = driver.find_element(By.ID, 'batting_proj') # This is going to need to be specified depending on whether a pitcher or not
+    content = driver.find_element(By.ID, f'{position_mapping[player_position]}_proj') # This is going to need to be specified depending on whether a pitcher or not
+    # content = SoupStrainer(id=f'{position_mapping[player_position]}_proj')
     html_string = content.get_attribute('outerHTML')
     driver.quit()
 
@@ -91,7 +130,7 @@ def get_projections():
 def get_career():
     career_request = requests.get(player_url)
     data = career_request.text
-    stats_table = SoupStrainer(id='batting_standard') # Will need to be specified depending on whether it not player is a pitcher
+    stats_table = SoupStrainer(id=f'{position_mapping[player_position]}_standard') # Will need to be specified depending on whether it not player is a pitcher
     career_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find('tfoot')
 
     for row in career_soup.find_all('tr'):
@@ -100,12 +139,11 @@ def get_career():
             player_stats['career'] = player_stats.get('career', stats)
             break
             
-
 @_timing_decorator
 def get_season():
     career_request = requests.get(player_url)
     data = career_request.text
-    stats_table = SoupStrainer(id='batting_standard') # Will need to be specified depending on whether the player is pitcher or batter
+    stats_table = SoupStrainer(id=f'{position_mapping[player_position]}_standard') # Will need to be specified depending on whether the player is pitcher or batter
     career_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find('tbody')
     # print(career_soup.prettify())
 
