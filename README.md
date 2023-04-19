@@ -12,6 +12,7 @@ The application is built using the following tools and technologies:
 ## Installation and Setup
 You can clone the repository to your local machine and navigate to the directory to install the required packages. You will need to have Python installed on your machine.
 
+> Please ensure that chromedriver is either located in this directory after cloning the repository or included in your system's PATH environment variables.
 
 <kbd>git clone https://github.com/[username]/baseball-reference-scraper.git</kbd>
 
