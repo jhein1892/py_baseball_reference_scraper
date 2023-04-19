@@ -124,7 +124,6 @@ def findStats(name):
             else:
                 player_stats['proj'] = player_stats.get('proj', {})
         except:
-            print("Sorry nothing in Projections")
             player_stats['proj'] = player_stats.get('proj', {})
             return
 
@@ -139,16 +138,15 @@ def findStats(name):
             data = career_request.text
             stats_table = SoupStrainer(id=f'{position_mapping[player_position]}_standard')
             stat_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find(type_mapping[stat_duration]['data_div'])
-        except:
-            print(f'Sorry, Nothing for this players {stat_duration}')
-            player_stats[stat_duration] = player_stats.get(stat_duration, {})
 
-        for row in stat_soup.find_all('tr'):
-            if row.find('th', {'csk': '2023'}) if stat_duration == 'season' else row.find('th').find('a'):
-                stats = _format_stats(row, stat_duration)
-                player_stats[stat_duration] = player_stats.get(stat_duration, stats)
-                break
-        else:
+            for row in stat_soup.find_all('tr'):
+                if row.find('th', {'csk': '2023'}) if stat_duration == 'season' else row.find('th').find('a'):
+                    stats = _format_stats(row, stat_duration)
+                    player_stats[stat_duration] = player_stats.get(stat_duration, stats)
+                    break
+            else:
+                player_stats[stat_duration] = player_stats.get(stat_duration, {})
+        except:
             player_stats[stat_duration] = player_stats.get(stat_duration, {})
 
     # Create Threads
@@ -176,7 +174,7 @@ def findStats(name):
     common_stats.insert(0, 'Time')
     table = tabulate([common_stats, career_values, season_values, proj_values], headers="firstrow", tablefmt="fancy_grid")
     
-    print(f"\n{name}:\n{table}")
+    print(f"\n{player_name}:\n{table}")
 
 while True:
     print("Enter 'q' to quit application")
@@ -187,4 +185,4 @@ while True:
     findStats(name)
 
 
-print('Thank you for using me!') # 194
+print('Thank you for using me!') # 188
