@@ -10,33 +10,35 @@ from selenium.webdriver.common.by import By
 from tabulate import tabulate
 
 def findStats(name):
+    player_name=''
+    position_mapping = {'B': 'batting', 'P' :'pitching'}
+    player_stats = {}
+    common_stats = []
+
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--disable-css')
     driver = webdriver.Chrome(options=options) # Still make sure that your chrome driver is in PATH or in this folder if it isn't
-    
+
     try:
-        payload = {'search': f"{name}"}
-        search_request = requests.get('https://www.baseball-reference.com/search/search.fcgi', payload)
+        search_request = requests.get('https://www.baseball-reference.com/search/search.fcgi', {'search': f'{name}'})
         data = search_request.text
         url = search_request.url
-        parsed_url = urlparse(url)
-        url_path = parsed_url.path
+        print(url)
         player_url = ''
-        if '/players' in url_path:
+        if '/players' in urlparse(url).path:
             player_url = url
         else:
             only_relevant_url = SoupStrainer(class_='search-item-url')
             only_relevant_players = SoupStrainer(id='players')
             soup = BeautifulSoup(data, 'html.parser', parse_only=only_relevant_players)
             my_players = soup.find_all(only_relevant_url)
-            player_url = my_players[0].text # Run on most relevant player
-
+            print(my_players)
             # Create next search's URL
             baseURL = 'https://www.baseball-reference.com'
-            player_url = baseURL + player_url
+            player_url = baseURL + my_players[0].text # Run on most relevant player
     except IndexError:
-        print("Ooopsy, this isn't a player!")
+        print(f"Hmm, we can't seem to find player {name}")
         return
     
     # Track Time for each Thread
@@ -50,24 +52,21 @@ def findStats(name):
         return wrapper
 
     def _find_position():
+        global player_name
         position_request = requests.get(player_url)
         data = position_request.text
         only_meta = SoupStrainer(id='meta')
         soup = BeautifulSoup(data,'html.parser', parse_only=only_meta).find_all('div')
         for div in soup:
-            my_tags = div.find_all('p')
-            for element in my_tags:
-                if 'Position' in element.text:
-                    if 'Pitcher' in element.text:
-                        return "P"
-                    else:
-                        return "B"
+            player_name = div.find('h1').text
+            for element in div.find_all('p'):
+                if 'Position' in element.text and 'Pitcher' in element.text:
+                    return "P"
+                elif 'Position' in element.text and not 'Pitcher' in element.text:
+                    return "B"
             
     player_position = _find_position()
-    position_mapping = {'B': 'batting', 'P' :'pitching'}
-    player_stats = {}
-    common_stats = []
-
+    
     def _format_stats(raw_stats, list):
         keys_swapping = {
             "B":{
@@ -113,25 +112,23 @@ def findStats(name):
         driver.implicitly_wait(10)
         try:
             content = driver.find_element(By.ID, f'{position_mapping[player_position]}_proj') # This is going to need to be specified depending on whether a pitcher or not
-            # content = SoupStrainer(id=f'{position_mapping[player_position]}_proj')
             html_string = content.get_attribute('outerHTML')
+            soup = BeautifulSoup(html_string, 'html.parser')
+            stat_section = soup.find('tbody')
+
+            for row in stat_section.find_all('tr'):
+                if row.find('a',{'title':'Marcels Projections'}):
+                    stats = _format_stats(row, 'proj')
+                    player_stats['proj'] = player_stats.get('proj', stats)
+                    break
+            else:
+                player_stats['proj'] = player_stats.get('proj', {})
         except:
             print("Sorry nothing in Projections")
             player_stats['proj'] = player_stats.get('proj', {})
             return
 
         driver.quit()
-
-        soup = BeautifulSoup(html_string, 'html.parser')
-        stat_section = soup.find('tbody')
-
-        for row in stat_section.find_all('tr'):
-            if row.find('a',{'title':'Marcels Projections'}):
-                stats = _format_stats(row, 'proj')
-                player_stats['proj'] = player_stats.get('proj', stats)
-                break
-        else:
-            player_stats['proj'] = player_stats.get('proj', {})
 
     @_timing_decorator
     def get_standard_stats(stat_duration):
@@ -178,8 +175,8 @@ def findStats(name):
 
     common_stats.insert(0, 'Time')
     table = tabulate([common_stats, career_values, season_values, proj_values], headers="firstrow", tablefmt="fancy_grid")
-
-    print(table)
+    
+    print(f"\n{name}:\n{table}")
 
 while True:
     print("Enter 'q' to quit application")
