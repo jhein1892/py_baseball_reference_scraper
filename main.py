@@ -5,10 +5,7 @@ import threading
 from urllib.parse import urlparse
 
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from tabulate import tabulate
 
@@ -33,10 +30,7 @@ def findStats(name):
             only_relevant_players = SoupStrainer(id='players')
             soup = BeautifulSoup(data, 'html.parser', parse_only=only_relevant_players)
             my_players = soup.find_all(only_relevant_url)
-
-            # update this to work with multiple players
-            # for player in my_players:
-            player_url = my_players[0].text
+            player_url = my_players[0].text # Run on most relevant player
 
             # Create next search's URL
             baseURL = 'https://www.baseball-reference.com'
@@ -44,11 +38,8 @@ def findStats(name):
     except IndexError:
         print("Ooopsy, this isn't a player!")
         return
-
-
-    print(player_url)
-
-    # # # Track Time for each Thread
+    
+    # Track Time for each Thread
     def _timing_decorator(func):
         def wrapper(*args, **kwargs):
             start_time = time.time()
@@ -58,7 +49,6 @@ def findStats(name):
             return result
         return wrapper
 
-    @_timing_decorator
     def _find_position():
         position_request = requests.get(player_url)
         data = position_request.text
@@ -80,7 +70,6 @@ def findStats(name):
     season_keys = []
     proj_keys = []
 
-    @_timing_decorator
     def _format_stats(raw_stats, list):
         keys_mapping = {'career': career_keys, 'season': season_keys, 'proj': proj_keys}
         keys_swapping = {
@@ -146,51 +135,31 @@ def findStats(name):
             player_stats['proj'] = player_stats.get('proj', {})
 
     @_timing_decorator
-    def get_career():
-        try:
-            career_request = requests.get(player_url)
-            data = career_request.text
-            stats_table = SoupStrainer(id=f'{position_mapping[player_position]}_standard') # Will need to be specified depending on whether it not player is a pitcher
-            career_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find('tfoot')
-        except: 
-            print("Sorry, nothing in Carrer")
-            player_stats['career'] = player_stats.get('career', {}) 
+    def get_standard_stats(stat_duration):
+        type_mapping = {"season":{'data_div':'tbody'}, "career" : {'data_div':'tfoot'}}
 
-        for row in career_soup.find_all('tr'):
-            if row.find('th').find('a'): 
-                stats = _format_stats(row, 'career')
-                player_stats['career'] = player_stats.get('career', stats) 
-                break
-        else:
-            player_stats['career'] = player_stats.get('career', {}) 
-                              
-    @_timing_decorator
-    def get_season():
         try:
             career_request = requests.get(player_url)
             data = career_request.text
-            stats_table = SoupStrainer(id=f'{position_mapping[player_position]}_standard') # Will need to be specified depending on whether the player is pitcher or batter
-            career_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find('tbody')
+            stats_table = SoupStrainer(id=f'{position_mapping[player_position]}_standard')
+            stat_soup = BeautifulSoup(data, 'html.parser', parse_only=stats_table).find(type_mapping[stat_duration]['data_div'])
         except:
-            print('Sorry, Nothing for this season')
-            player_stats['season'] = player_stats.get('season', {})
-        # print(career_soup.prettify())
+            print(f'Sorry, Nothing for this players {stat_duration}')
+            player_stats[stat_duration] = player_stats.get(stat_duration, {})
 
-        for row in career_soup.find_all('tr'):
-            if row.find('th', {'csk':'2023'}):
-                stats = _format_stats(row, 'season')
-                player_stats['season'] = player_stats.get('season', stats)
+        for row in stat_soup.find_all('tr'):
+            if row.find('th', {'csk': '2023'}) if stat_duration == 'season' else row.find('th').find('a'):
+                stats = _format_stats(row, stat_duration)
+                player_stats[stat_duration] = player_stats.get(stat_duration, stats)
                 break
         else:
-            player_stats['season'] = player_stats.get('season', {})
-        # print('Player Season')
+            player_stats[stat_duration] = player_stats.get(stat_duration, {})
 
     # Create Threads
-
     # This can get condensed into a loop
     projection_thread = threading.Thread(target=get_projections)
-    career_thread = threading.Thread(target=get_career)
-    season_thread = threading.Thread(target=get_season)
+    career_thread = threading.Thread(target=get_standard_stats('career'))
+    season_thread = threading.Thread(target=get_standard_stats('season'))
 
     projection_thread.start()
     career_thread.start()
@@ -201,7 +170,7 @@ def findStats(name):
     for thread in threads:
         thread.join()
 
-    # common_stats = set(career_keys).intersection(season_keys, proj_keys)
+
     common_stats = set(career_keys).union(season_keys, proj_keys)
     career_values = ['Career(Avg 162)']
     season_values = ['Season']
@@ -229,3 +198,8 @@ while True:
 
 
 print('Thank you for using me!')
+
+
+# 228
+# 213
+# 199
