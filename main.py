@@ -18,7 +18,7 @@ def findStats(name):
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--disable-css')
-    driver = webdriver.Chrome(options=options) # Still make sure that your chrome driver is in PATH or in this folder if it isn't
+    driver = webdriver.Chrome(options=options)  # Still make sure that your chrome driver is in PATH or in this folder if it isn't
 
     try:
         search_request = requests.get('https://www.baseball-reference.com/search/search.fcgi', {'search': f'{name}'})
@@ -41,7 +41,6 @@ def findStats(name):
         print(f"Hmm, we can't seem to find player {name}")
         return
     
-    # Track Time for each Thread
     def _timing_decorator(func):
         def wrapper(*args, **kwargs):
             start_time = time.time()
@@ -105,7 +104,6 @@ def findStats(name):
             stat_obj[data_stat] = stat_obj.get(data_stat, value)    
         return stat_obj
 
-    # This one is being a problem
     @_timing_decorator
     def get_projections():
         driver.get(player_url)
@@ -184,5 +182,4 @@ while True:
     print(f"you've entered: {name}\nHold on while we gather their stats...\n")
     findStats(name)
 
-
-print('Thank you for using me!') # 188
+print('Thank you for using me!')
