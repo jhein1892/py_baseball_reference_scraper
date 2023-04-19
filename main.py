@@ -14,7 +14,7 @@ def findStats(name):
     options.add_argument('--headless')
     options.add_argument('--disable-css')
     driver = webdriver.Chrome(options=options) # Still make sure that your chrome driver is in PATH or in this folder if it isn't
-# Turn this into user input
+    
     try:
         payload = {'search': f"{name}"}
         search_request = requests.get('https://www.baseball-reference.com/search/search.fcgi', payload)
@@ -66,12 +66,9 @@ def findStats(name):
     player_position = _find_position()
     position_mapping = {'B': 'batting', 'P' :'pitching'}
     player_stats = {}
-    career_keys = []
-    season_keys = []
-    proj_keys = []
+    common_stats = []
 
     def _format_stats(raw_stats, list):
-        keys_mapping = {'career': career_keys, 'season': season_keys, 'proj': proj_keys}
         keys_swapping = {
             "B":{
                 'batting_avg': 'AVG', 
@@ -101,8 +98,10 @@ def findStats(name):
                 continue
             if data_stat in keys_swapping[player_position]:
                 data_stat = keys_swapping[player_position][data_stat]
-                
-            keys_mapping[list].append(data_stat)
+
+            if data_stat not in common_stats:
+                common_stats.append(data_stat)    
+
             value = stat.text
             stat_obj[data_stat] = stat_obj.get(data_stat, value)    
         return stat_obj
@@ -156,22 +155,18 @@ def findStats(name):
             player_stats[stat_duration] = player_stats.get(stat_duration, {})
 
     # Create Threads
-    # This can get condensed into a loop
-    projection_thread = threading.Thread(target=get_projections)
-    career_thread = threading.Thread(target=get_standard_stats('career'))
-    season_thread = threading.Thread(target=get_standard_stats('season'))
-
-    projection_thread.start()
-    career_thread.start()
-    season_thread.start()
-
-    threads = [projection_thread, career_thread, season_thread]
-
+    threads = []
+    for duration in ['proj', 'season', 'career']:
+        if duration == 'proj':
+            thread = threading.Thread(target=get_projections)
+        else:
+            thread = threading.Thread(target=get_standard_stats, args=(duration,))
+        threads.append(thread)
+        thread.start()
+    
     for thread in threads:
         thread.join()
 
-
-    common_stats = set(career_keys).union(season_keys, proj_keys)
     career_values = ['Career(Avg 162)']
     season_values = ['Season']
     proj_values = ['Projections']
@@ -181,12 +176,10 @@ def findStats(name):
         season_values.append(player_stats['season'][key] if  key in player_stats['season'] else 'NA')
         proj_values.append(player_stats['proj'][key] if key in player_stats['proj'] else 'NA')
 
-    common_stats = list(common_stats)
     common_stats.insert(0, 'Time')
     table = tabulate([common_stats, career_values, season_values, proj_values], headers="firstrow", tablefmt="fancy_grid")
 
     print(table)
-
 
 while True:
     print("Enter 'q' to quit application")
@@ -197,9 +190,4 @@ while True:
     findStats(name)
 
 
-print('Thank you for using me!')
-
-
-# 228
-# 213
-# 199
+print('Thank you for using me!') # 194
